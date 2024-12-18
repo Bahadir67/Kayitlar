@@ -1,1 +1,279 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
+const ProjectTracker = () => {
+  // Auth state
+  const [authState, setAuthState] = useState('register'); // register, verify, login
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : {
+      name: '',
+      email: '',
+      password: '',
+      isVerified: false
+    };
+  });
+
+  // Project state
+  const [projects, setProjects] = useState(() => {
+    const savedProjects = localStorage.getItem('projects');
+    return savedProjects ? JSON.parse(savedProjects) : [];
+  });
+  
+  const [newProject, setNewProject] = useState({
+    name: '',
+    date: new Date(),
+    hours: ''
+  });
+
+  // Verification code state
+  const [verificationCode, setVerificationCode] = useState('');
+  const [generatedCode, setGeneratedCode] = useState('');
+
+  useEffect(() => {
+    // Save user data to localStorage whenever it changes
+    localStorage.setItem('user', JSON.stringify(user));
+  }, [user]);
+
+  useEffect(() => {
+    // Save projects to localStorage whenever they change
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
+
+  // Form handlers
+  const handleRegister = (e) => {
+    e.preventDefault();
+    // Generate a random verification code
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    setGeneratedCode(code);
+    // In a real app, this would be sent via email
+    alert(`Doğrulama kodunuz: ${code}`);
+    setAuthState('verify');
+  };
+
+  const handleVerification = (e) => {
+    e.preventDefault();
+    if (verificationCode === generatedCode) {
+      setUser(prev => ({ ...prev, isVerified: true }));
+      setAuthState('login');
+    } else {
+      alert('Yanlış doğrulama kodu!');
+    }
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const savedUser = JSON.parse(localStorage.getItem('user'));
+    if (savedUser.email === user.email && savedUser.password === user.password) {
+      setUser(savedUser);
+    } else {
+      alert('Hatalı e-posta veya şifre!');
+    }
+  };
+
+  const handleLogout = () => {
+    setUser({
+      name: '',
+      email: '',
+      password: '',
+      isVerified: false
+    });
+    setAuthState('login');
+  };
+
+  const handleProjectSubmit = (e) => {
+    e.preventDefault();
+    const project = {
+      ...newProject,
+      id: Date.now(),
+      date: newProject.date.toISOString() // Convert Date to string for localStorage
+    };
+    setProjects(prev => [...prev, project]);
+    setNewProject({ name: '', date: new Date(), hours: '' });
+  };
+
+  // Project selection
+  const [selectedProject, setSelectedProject] = useState('');
+  const uniqueProjects = [...new Set(projects.map(p => p.name))];
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      {!user.isVerified ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {authState === 'register' ? 'Kayıt Ol' : 
+               authState === 'verify' ? 'E-posta Doğrulama' : 'Giriş Yap'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {authState === 'register' && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <Input
+                  placeholder="İsim"
+                  value={user.name}
+                  onChange={e => setUser(prev => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+                <Input
+                  type="email"
+                  placeholder="E-posta"
+                  value={user.email}
+                  onChange={e => setUser(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+                <Input
+                  type="password"
+                  placeholder="Şifre"
+                  value={user.password}
+                  onChange={e => setUser(prev => ({ ...prev, password: e.target.value }))}
+                  required
+                />
+                <Button type="submit" className="w-full">Kayıt Ol</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setAuthState('login')}
+                >
+                  Zaten hesabın var mı? Giriş yap
+                </Button>
+              </form>
+            )}
+
+            {authState === 'verify' && (
+              <form onSubmit={handleVerification} className="space-y-4">
+                <Alert>
+                  <AlertDescription>
+                    Doğrulama kodunu giriniz (Demo için kod alert olarak gösterilmektedir)
+                  </AlertDescription>
+                </Alert>
+                <Input
+                  placeholder="Doğrulama Kodu"
+                  value={verificationCode}
+                  onChange={e => setVerificationCode(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="w-full">Doğrula</Button>
+              </form>
+            )}
+
+            {authState === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <Input
+                  type="email"
+                  placeholder="E-posta"
+                  value={user.email}
+                  onChange={e => setUser(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+                <Input
+                  type="password"
+                  placeholder="Şifre"
+                  value={user.password}
+                  onChange={e => setUser(prev => ({ ...prev, password: e.target.value }))}
+                  required
+                />
+                <Button type="submit" className="w-full">Giriş Yap</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setAuthState('register')}
+                >
+                  Hesap oluştur
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Hoş geldin, {user.name}</h2>
+            <Button onClick={handleLogout}>Çıkış Yap</Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Proje Zamanı Kaydet</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProjectSubmit} className="space-y-4">
+                {uniqueProjects.length > 0 && (
+                  <select
+                    className="w-full p-2 border rounded-md"
+                    value={selectedProject}
+                    onChange={(e) => {
+                      setSelectedProject(e.target.value);
+                      setNewProject(prev => ({ ...prev, name: e.target.value }));
+                    }}
+                  >
+                    <option value="">Yeni Proje</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                )}
+                
+                {!selectedProject && (
+                  <Input
+                    placeholder="Yeni Proje İsmi"
+                    value={newProject.name}
+                    onChange={e => setNewProject(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                )}
+                
+                <div className="border rounded-md p-4">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(newProject.date)}
+                    onSelect={date => setNewProject(prev => ({ ...prev, date: date || new Date() }))}
+                    className="rounded-md border"
+                  />
+                </div>
+                
+                <Input
+                  type="number"
+                  placeholder="Çalışma Saati"
+                  value={newProject.hours}
+                  onChange={e => setNewProject(prev => ({ ...prev, hours: e.target.value }))}
+                  required
+                />
+                <Button type="submit" className="w-full">Kaydet</Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Proje Kayıtları</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {projects.map((project) => (
+                  <div key={project.id} className="p-4 border rounded-md">
+                    <h3 className="font-medium">{project.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      Tarih: {new Date(project.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Çalışma Süresi: {project.hours} saat
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProjectTracker;
